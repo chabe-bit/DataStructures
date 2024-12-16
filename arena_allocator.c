@@ -1,11 +1,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdint.h>
-
+#include <string.h>
 #include <assert.h>
 
-// Arena allocation allocates a block of memory for a group, rather the standard allocation 
-// for individual pieces. 
+// Arena allocation allocates a block of memory for a group, rather the standard allocation for individual pieces. 
 
 typedef struct Arena
 {
@@ -13,7 +12,7 @@ typedef struct Arena
     // capacity, size, data 
     size_t capacity;
     size_t size;
-    uint8_t *data; 
+    uint8_t *data;
 } Arena;
 
 // Initialize arena allocater 
@@ -23,7 +22,8 @@ Arena arena_init(size_t capacity)
     Arena arena = {
         .capacity = capacity,
         .size = 0,
-        .data = data
+        .data = data,
+        .next = NULL,
     };
     return arena;
 }
@@ -31,18 +31,27 @@ Arena arena_init(size_t capacity)
 // Allocate memory
 void *arena_alloc(Arena *arena, size_t size)
 {
-    // Rather than asserting that if an overflow happens, we simply will create a new memory block to allocate over.
-    if (!(arena->size + size <= arena->capacity))
-    {
-    }
-
+    assert(arena->capacity >= size);
     printf("arena_alloc()...\n");
 
-    // return the result of our data 
-    arena->size += size;
+    // Rather than asserting that if an overflow happens, we simply will create a new memory block to allocate over.
+    Arena *current = arena;
+    while (!(current->size + size <= current->capacity))
+    {
+        // Create our new memory block
+        if (current->next == NULL)
+        {
+            Arena next = arena_init(arena->capacity);
+            current->next = &next;
+        }
+        current = current->next;
+    }
     
-    uint8_t *data = &arena->data[arena->size];
+    // return the result of our data 
+    current->size += size;
+    uint8_t *data = &current->data[arena->size];
     return data;
+
 }
 
 // Reset allocator size 
@@ -76,7 +85,7 @@ int main()
 {
     Arena arena = arena_init(1024);    
     
-    void *ptr = arena_alloc(&arena, 900);    
+    void *ptr = arena_alloc(&arena, 1000);    
     printf("mem size: %zu\n", arena.size);
     void *ptr2 = arena_alloc(&arena, 10);    
     printf("mem size: %zu\n", arena.size);
